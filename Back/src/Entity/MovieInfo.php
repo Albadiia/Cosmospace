@@ -4,7 +4,6 @@ namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
 use App\Repository\MovieInfoRepository;
-use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Table(name: 'movie_info')]
@@ -17,22 +16,23 @@ class MovieInfo
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    private ?string $overview = null;
+    #[ORM\OneToOne(cascade: ['persist', 'remove'])]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?movie $movie = null;
 
     public function getId(): ?int
     {
         return $this->id;
     }
 
-    public function getOverview(): ?string
+    public function getMovie(): ?movie
     {
-        return $this->overview;
+        return $this->movie;
     }
 
-    public function setOverview(?string $overview): static
+    public function setMovie(movie $movie): static
     {
-        $this->overview = $overview;
+        $this->movie = $movie;
 
         return $this;
     }

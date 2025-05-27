@@ -2,6 +2,10 @@
 
 namespace App\Command;
 
+use App\Entity\Movie;
+use App\Service\APIRequest;
+use Doctrine\ORM\EntityManagerInterface;
+use Exception;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -16,8 +20,10 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 )]
 class MovieSynchronizationCommand extends Command
 {
-    public function __construct()
-    {
+    public function __construct(
+        private APIRequest $apiRequest,
+        private EntityManagerInterface $em
+    ) {
         parent::__construct();
     }
 
@@ -32,18 +38,40 @@ class MovieSynchronizationCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-        $arg1 = $input->getArgument('arg1');
+        $io->text('hello world');
+        $movies = $this->apiRequest->request('now_playing', 'GET')['results'];
 
-        if ($arg1) {
-            $io->note(sprintf('You passed an argument: %s', $arg1));
+        foreach ($movies as $movie) {
+            $title = $movie['title'];
+            $overview = $movie['overview'];
+            $releaseDate = $movie['release_date'];
+            $idAPI = $movie['id'];
+            $isAdult = $movie['adult'];
+            $voteAverage = $movie['vote_average'];
+            $voteCount = $movie['vote_count'];
+            $poster = $movie['poster_path'];
+
+            $element = new Movie();
+            $element->setTitle($title);
+            $element->setOverview($overview);
+            $element->setReleaseDate(new \DateTime($releaseDate));
+            $element->setIdAPI($idAPI);
+            $element->setIsAdult($isAdult);
+            $element->setVoteAverage($voteAverage);
+            $element->setVoteCount($voteCount);
+            $element->setPoster($poster);
+
+            $this->em->persist($element);
         }
 
-        if ($input->getOption('option1')) {
-            // ...
+        try {
+            $this->em->flush();
+
+            return Command::SUCCESS;
+        } catch (\Throwable $th) {
+            throw new Exception($th);
+
+            return Command::FAILURE;
         }
-
-        $io->success('You have a new command! Now make it your own! Pass --help to see your options.');
-
-        return Command::SUCCESS;
     }
 }
