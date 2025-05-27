@@ -3,6 +3,8 @@
 namespace App\Command;
 
 use App\Entity\Movie;
+use App\Entity\MovieInfo;
+use App\Repository\MovieRepository;
 use App\Service\APIRequest;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
@@ -22,6 +24,7 @@ class MovieSynchronizationCommand extends Command
 {
     public function __construct(
         private APIRequest $apiRequest,
+        private MovieRepository $movieRepository,
         private EntityManagerInterface $em
     ) {
         parent::__construct();
@@ -38,7 +41,7 @@ class MovieSynchronizationCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-        $io->text('hello world');
+        //get movie info
         $movies = $this->apiRequest->request('now_playing', 'GET')['results'];
 
         foreach ($movies as $movie) {
@@ -51,27 +54,46 @@ class MovieSynchronizationCommand extends Command
             $voteCount = $movie['vote_count'];
             $poster = $movie['poster_path'];
 
-            $element = new Movie();
-            $element->setTitle($title);
-            $element->setOverview($overview);
-            $element->setReleaseDate(new \DateTime($releaseDate));
-            $element->setIdAPI($idAPI);
-            $element->setIsAdult($isAdult);
-            $element->setVoteAverage($voteAverage);
-            $element->setVoteCount($voteCount);
-            $element->setPoster($poster);
+            //prevent doublons
+            if (!$this->movieRepository->findOneBy(['idAPI' => $idAPI])) {
+                $element = new Movie();
+                $element->setTitle($title);
+                $element->setOverview($overview);
+                $element->setReleaseDate(new \DateTime($releaseDate));
+                $element->setIdAPI($idAPI);
+                $element->setIsAdult($isAdult);
+                $element->setVoteAverage($voteAverage);
+                $element->setVoteCount($voteCount);
+                $element->setPoster($poster);
 
-            $this->em->persist($element);
+                $this->em->persist($element);
+
+                //get Movie details
+                $movieInfo = $this->apiRequest->request($idAPI, 'GET');
+                $genre = $movieInfo['genres'];
+                $productionCompany = $movieInfo['production_companies'];
+                $productionCountry = $movieInfo['production_countries'];
+                $revenue = $movieInfo['revenue'];
+                $budget = $movieInfo['budget'];
+
+                $elementInfo = new MovieInfo();
+                $elementInfo->setMovie($element);
+                $elementInfo->setGenre($genre);
+                $elementInfo->setProductionCompany($productionCompany);
+                $elementInfo->setProductionCountry($productionCountry);
+                $elementInfo->setRevenue($revenue);
+                $elementInfo->setBudget($budget);
+
+                $this->em->persist($elementInfo);
+            }
         }
 
         try {
             $this->em->flush();
-
-            return Command::SUCCESS;
         } catch (\Throwable $th) {
             throw new Exception($th);
-
-            return Command::FAILURE;
         }
+
+        return Command::SUCCESS;
     }
 }

@@ -2,44 +2,72 @@
 
 namespace App\Entity;
 
-use ApiPlatform\Metadata\ApiResource;
-use App\Repository\MovieRepository;
 use Doctrine\DBAL\Types\Types;
+use ApiPlatform\Metadata\Patch;
 use Doctrine\ORM\Mapping as ORM;
+use App\Repository\MovieRepository;
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\GetCollection;
+use App\Controller\Movie\MoviePatchController;
+use Symfony\Component\Serializer\Annotation\Groups;
 
 #[ORM\Table(name: 'movie')]
 #[ORM\Entity(repositoryClass: MovieRepository::class)]
-#[ApiResource]
+#[ApiResource(
+    normalizationContext: ['groups' => ['movie:read']],
+    denormalizationContext: ['groups' => ['movie:write']],
+    operations: [
+        new GetCollection(),
+        new Patch(
+            name: 'Movie',
+            uriTemplate: '/movies/{id}',
+            controller: MoviePatchController::class
+        )
+    ]
+)]
 class Movie
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['movie:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(['movie:read', 'movie:write'])]
     private ?string $title = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups(['movie:read', 'movie:write'])]
     private ?string $overview = null;
 
     #[ORM\Column(type: Types::DATE_MUTABLE)]
+    #[Groups(['movie:read', 'movie:write'])]
     private ?\DateTime $releaseDate = null;
 
     #[ORM\Column]
+    #[Groups(['movie:read', 'movie:write'])]
     private ?bool $isAdult = null;
 
     #[ORM\Column]
+    #[Groups(['movie:read', 'movie:write'])]
     private ?int $idAPI = null;
 
     #[ORM\Column]
+    #[Groups(['movie:read', 'movie:write'])]
     private ?float $voteAverage = null;
 
     #[ORM\Column(nullable: true)]
+    #[Groups(['movie:read', 'movie:write'])]
     private ?int $voteCount = null;
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(['movie:read', 'movie:write'])]
     private ?string $poster = null;
+
+    #[ORM\Column]
+    #[Groups(['movie:read', 'movie:write'])]
+    private ?int $share = 0;
 
     public function getId(): ?int
     {
@@ -138,6 +166,18 @@ class Movie
     public function setPoster(?string $poster): static
     {
         $this->poster = $poster;
+
+        return $this;
+    }
+
+    public function getShare(): ?int
+    {
+        return $this->share;
+    }
+
+    public function setShare(int $share): static
+    {
+        $this->share = $share;
 
         return $this;
     }
